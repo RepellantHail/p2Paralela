@@ -3,19 +3,18 @@ package com.example.p2paralela;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.scene.chart.*;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
 import javafx.scene.control.TextInputDialog;
-
 import java.util.Optional;
 import java.util.Random;
-
 import static com.example.p2paralela.BucketSort.bucketSort;
 import static com.example.p2paralela.BucketSort.bucketSortP;
 
 public class HelloController {
-    private volatile boolean isSortingSuspendedS = false;
-    private volatile boolean isSortingSuspendedP = false;
+    @FXML
+    private BarChart<String, Number> timeChart;
     private volatile boolean isSortingStopped = false;
     @FXML
     private ProgressBar progressBar;
@@ -27,13 +26,15 @@ public class HelloController {
     private Label lblConcurrente;
     @FXML
     private Label lblHilos;
+    @FXML
+    private Label lblElementos;
     private int numberOfThreads = 2;
     private float[] numbers;
     private float[] numbersParallel;
     private boolean isSortingS = false;
     private boolean isSortingP = false;
     int numberOfElements = 100;
-    int tiempoHilo = 1000;
+    int tiempoHilo = 1;
     public ProgressBar getProgressBar() {
         return progressBar;
     }
@@ -65,7 +66,7 @@ public class HelloController {
 
         // Muestra el número de hilos en la etiqueta correspondiente
         updateLabel(lblHilos, "N° Hilos: "+Integer.toString(numberOfThreads));
-
+        updateLabel(lblElementos, "N° Elementos: "+Integer.toString(numberOfElements));
         numbers = generateRandomNumbers(numberOfElements);
         numbersParallel = numbers.clone();
 
@@ -99,23 +100,33 @@ public class HelloController {
         counterThreadP.start();
 
         Thread sortingThread = new Thread(() -> {
-            bucketSort(numbers, numbers.length, tiempoHilo,getProgressBar());
+            long startTime = System.currentTimeMillis();
+            bucketSort(numbers, numbers.length, tiempoHilo, getProgressBar());
+            long endTime = System.currentTimeMillis();
             isSortingS = false;
             for (float n : numbers){
                 System.out.println(n);
             }
-            System.out.println("Sequencial Termino");
+            System.out.println("Secuencial Termino");
+
+            // Actualizar el gráfico con el tiempo de procesamiento secuencial
+            updateChart("Secuencial", endTime - startTime);
         });
         sortingThread.start();
         //Paralelo
         Thread sortingThreadParallel = new Thread(() -> {
+            long startTime = System.currentTimeMillis();
             bucketSortP(numbersParallel, numbersParallel.length, tiempoHilo, getProgressBarP(),numberOfThreads);
+            long endTime = System.currentTimeMillis();
             isSortingP = false;
             Platform.runLater(() -> {
                 for (float n : numbersParallel) {
                     System.out.println(n);
                 }
                 System.out.println("Concurrente terminó");
+
+                // Actualizar el gráfico con el tiempo de procesamiento concurrente
+                updateChart("Concurrente", endTime - startTime);
             });
         });
         sortingThreadParallel.start();
@@ -140,6 +151,15 @@ public class HelloController {
         }
         return arr;
     }
+
+    private void updateChart(String processingType, long time) {
+        Platform.runLater(() -> {
+            XYChart.Series<String, Number> series = new XYChart.Series<>();
+            series.getData().add(new XYChart.Data<>(processingType, time));
+            timeChart.getData().add(series);
+        });
+    }
+
 
 
 }
